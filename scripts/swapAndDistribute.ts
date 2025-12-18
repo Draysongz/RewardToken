@@ -37,7 +37,7 @@ async function fetchHolders(limit: number = 1000) {
     return wallets;
 }
 
-function buildJettonTransferBody(amount: bigint, destination: Address): Buffer {
+function buildJettonTransferBody(amount: bigint, destination: Address) {
     const op = 0xf8a7ea5; // JettonTransfer opcode
 
     const body = beginCell()
@@ -51,7 +51,7 @@ function buildJettonTransferBody(amount: bigint, destination: Address): Buffer {
         .storeBit(0) // empty forwardPayload
         .endCell();
 
-    return body.toBoc();
+    return body;
 }
 
 async function swapFeesToRewardToken(client: TonClient4) {
@@ -106,7 +106,7 @@ async function swapAndDistribute() {
 
     n;
     const holders = await fetchHolders();
-    const totalBalance = holders.map((h) => BigInt(h.balance)).reduce((a, b) => a + b, 0n);
+    const totalBalance = holders.reduce((acc, h) => acc + BigInt(h.balance), 0n);
 
     if (totalBalance === 0n) {
         console.log('No holders with balance; aborting distribution');
@@ -145,8 +145,9 @@ async function swapAndDistribute() {
         const body = buildJettonTransferBody(share, dest);
 
         const seqno = await walletContract.getSeqno();
-        await walletContract.sendTransfer(sender, {
+        await walletContract.sendTransfer({
             seqno,
+            secretKey: DISTRIBUTOR_WALLET_SECRET_KEY,
             messages: [
                 internal({
                     to: rewardWalletAddr,
