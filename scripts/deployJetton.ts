@@ -14,7 +14,7 @@ export async function run(provider: NetworkProvider) {
             senderAddress,
             jettonContentToCell({
                 type: 1,
-                uri: 'https://moccasin-bright-skunk-108.mypinata.cloud/ipfs/bafkreigmh4ua45ujyietfibm7lqdtfa7mmeglqanmw4yyw4qcr57lcj2sq',
+                uri: 'https://moccasin-bright-skunk-108.mypinata.cloud/ipfs/bafkreidnjdchiw43zonyuj4xwkzgnafxamuds4uozdwo6t5xy5unebtnqi',
             }),
             true,
             Address.parse('UQD_t9e_dF4ADstJ8O_k_cS7GtOm9vOls2XHCWbjD8EoxUHa'),
