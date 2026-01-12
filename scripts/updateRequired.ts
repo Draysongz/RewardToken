@@ -18,10 +18,10 @@ export async function run(provider: NetworkProvider) {
         },
         {
             $$type: 'UpdateRequiredAddresses',
-            dedustVaultAddress: Address.parse('EQClBW0bHE1REnfweZwHva5opOrLuHJRoW21rbSuVPmcGS3e'),
+            dedustVaultAddress: Address.parse('EQC9gxngYSj1hnuD8WiPklrthTsm2VTpshAjPG1X35UCtFDo'),
             dedustRouterAddress: Address.parse('EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67'),
-            liquidityDepositAddress: Address.parse('EQDWfhKei2kZD2-ySQnRJDDQXa47LfBgDHAV8Rc6BovGNdhr'),
-            poolAddress: Address.parse('EQBKZ7sda7Y3P2AOiXg_vI5noY8PhcmNNW9Ufy-A89cc_YEt'),
+            liquidityDepositAddress: Address.parse('EQCoUu_l23k_PmgZq2Dq-ILzGLgb1CH8r2cEjB0hr7zXV6ob'),
+            poolAddress: Address.parse('EQAwtFSXrcTWdaqqF5L7YLXV7Q8KA2DGXPJGfb9XzYUczJPv'),
         },
     );
 

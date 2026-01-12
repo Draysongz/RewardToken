@@ -7,7 +7,7 @@ export type JettonMinterContent = {
     uri: string;
 };
 
-export const minterAddress = Address.parse('EQBpCY2cKdmSrS6LC7ZJJ3AQ4ywFmaRoL9JBhTgZl2znf9gH');
+export const minterAddress = Address.parse('EQCWVX1s8-Vgesy6G226-6s5NouspXlp0GLP3N3nmxGv6U5S');
 
 export const zeroAddress = Address.parse('UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ');
 

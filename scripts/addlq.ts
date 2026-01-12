@@ -3,7 +3,7 @@ import { toNano } from '@ton/core';
 import { minterAddress } from '../utils';
 import { NetworkProvider } from '@ton/blueprint';
 
-const tonAmount = toNano('5'); // 10 ton
+const tonAmount = toNano('13'); // 10 ton
 const jettonAmount = toNano('1000000'); // 1 million jetton
 
 const TON = Asset.native();
