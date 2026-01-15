@@ -117,9 +117,12 @@ message(0x0393b1ce) ClaimTON {
     receiver: Address;
 }
 
-message(0x76d02917) UpdateRequiredAddresses {
+message(0x72e9da92) UpdateRequiredAddresses {
     dedustVaultAddress: Address;
     dedustRouterAddress: Address;
     poolAddress: Address;
-    liquidityDepositAddress: Address
+    liquidityDepositAddress: Address;
+    tokenDedustVaultAddress: Address;
+    tokenLiquidityDepositAddress: Address;
+    tokenPoolAddress: Address;
 }

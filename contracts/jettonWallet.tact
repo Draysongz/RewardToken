@@ -11,6 +11,9 @@ contract JettonWallet(
     dedustRouterAddress: Address,
     poolAddress: Address,
     liquidityDepositAddress: Address,
+    tokenDedustVaultAddress: Address,
+    tokenLiquidityDepositAddress: Address,
+    tokenPoolAddress: Address,
     feeWallet: Address,
     buyTaxBps: Int,
     sellTaxBps: Int,
@@ -28,11 +31,17 @@ contract JettonWallet(
         forceBasechain(msg.destination);
         require(sender() == self.owner, "Incorrect sender");
 
-        let isDexDestination: Bool =  msg.destination == self.dedustVaultAddress;
-        let isDexSender:Bool = sender() == self.dedustVaultAddress || sender() == self.poolAddress || sender() == self.dedustRouterAddress || sender() == self.liquidityDepositAddress;
+        let isDexDestination: Bool =  msg.destination == self.dedustVaultAddress || msg.destination == self.tokenDedustVaultAddress;
+        let isDexSender:Bool = sender() == self.dedustVaultAddress || 
+                               sender() == self.poolAddress || 
+                               sender() == self.dedustRouterAddress || 
+                               sender() == self.liquidityDepositAddress  ||
+                               sender() == self.tokenDedustVaultAddress|| 
+                               sender() == self.tokenPoolAddress ||  
+                               sender() == self.tokenLiquidityDepositAddress ;
 
         
-        let isLiquidityAdd: Bool = self.owner == self.minterOwner && msg.destination == self.dedustVaultAddress;
+        let isLiquidityAdd: Bool = self.owner == self.minterOwner && msg.destination == self.dedustVaultAddress || self.owner == self.minterOwner && msg.destination == self.tokenDedustVaultAddress;
         let isTaxWallet = self.owner == self.feeWallet;
 
         let isSell: Bool = isDexDestination && !isLiquidityAdd &&  !isTaxWallet;
@@ -50,6 +59,7 @@ contract JettonWallet(
 
         let ctx = context();
         let fwdCount: Int = 1 + sign(taxAmount) + sign(msg.forwardTonAmount);
+
         require(
             ctx.value >
             msg.forwardTonAmount +
@@ -63,7 +73,7 @@ contract JettonWallet(
         if (taxAmount > 0) {
             deploy(DeployParameters {
                 value: gasForProcessing,
-                mode: SendPayGasSeparately,
+                mode: SendPayFwdFeesSeparately,
                 bounce: true,
                 body: JettonTransferInternal {
                     queryId: msg.queryId,
@@ -83,6 +93,9 @@ contract JettonWallet(
                     self.dedustRouterAddress,
                     self.poolAddress,
                     self.liquidityDepositAddress,
+                    self.tokenDedustVaultAddress,
+                    self.tokenLiquidityDepositAddress,
+                    self.tokenPoolAddress,
                     self.feeWallet,
                     self.buyTaxBps,
                     self.sellTaxBps,
@@ -92,7 +105,7 @@ contract JettonWallet(
 
         deploy(DeployParameters {
             value: 0,
-            mode: SendRemainingValue,
+            mode: SendRemainingBalance,
             bounce: true,
             body: JettonTransferInternal {
                 queryId: msg.queryId,
@@ -112,6 +125,9 @@ contract JettonWallet(
                 self.dedustRouterAddress,
                 self.poolAddress,
                 self.liquidityDepositAddress,
+                self.tokenDedustVaultAddress,
+                self.tokenLiquidityDepositAddress,
+                self.tokenPoolAddress,
                 self.feeWallet,
                 self.buyTaxBps,
                 self.sellTaxBps,
@@ -123,7 +139,7 @@ contract JettonWallet(
         self.balance += msg.amount;
 
         // This message should come only from master, or from other JettonWallet
-        let wallet: StateInit = initOf JettonWallet(0, msg.sender, self.minter, self.timeLapse, self.minterOwner, self.dedustVaultAddress, self.dedustRouterAddress, self.poolAddress, self.liquidityDepositAddress, self.feeWallet, self.buyTaxBps, self.sellTaxBps);
+        let wallet: StateInit = initOf JettonWallet(0, msg.sender, self.minter, self.timeLapse, self.minterOwner, self.dedustVaultAddress, self.dedustRouterAddress, self.poolAddress, self.liquidityDepositAddress,self.tokenDedustVaultAddress, self.tokenLiquidityDepositAddress, self.tokenPoolAddress, self.feeWallet, self.buyTaxBps, self.sellTaxBps);
         if (!wallet.hasSameBasechainAddress(sender())) {
             require(self.minter == sender(), "Incorrect sender");
         }

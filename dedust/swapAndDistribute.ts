@@ -3,6 +3,38 @@ import { TonClient4, WalletContractV5R1, internal } from '@ton/ton';
 import { mnemonicToWalletKey } from '@ton/crypto';
 import { JettonRoot } from '@dedust/sdk';
 import { minterAddress } from '../utils';
+import fs from 'fs';
+
+const PROGRESS_FILE = './distribution-progress.json';
+const BATCH_SIZE = 6;
+const BATCH_DELAY_MS = 2000;
+
+function loadProgress(): number {
+    if (!fs.existsSync(PROGRESS_FILE)) return 0;
+    return JSON.parse(fs.readFileSync(PROGRESS_FILE, 'utf8')).lastIndex ?? 0;
+}
+
+function saveProgress(index: number) {
+    fs.writeFileSync(PROGRESS_FILE, JSON.stringify({ lastIndex: index }, null, 2));
+}
+
+async function waitForRewardFunding(
+    client: TonClient4,
+    distributorAddress: Address,
+    intervalMs = 15000,
+): Promise<bigint> {
+    while (true) {
+        const balance = await fetchRewardWalletBalance(client, distributorAddress);
+
+        if (balance > 0n) {
+            console.log(`✅ Reward wallet funded: ${balance.toString()}`);
+            return balance;
+        }
+
+        console.log('⏳ Reward wallet empty. Fund the wallet to continue...');
+        await new Promise((r) => setTimeout(r, intervalMs));
+    }
+}
 
 const TONCENTER_BASE = 'https://toncenter.com/api/v3';
 
@@ -83,6 +115,7 @@ async function fetchRewardWalletBalance(client: TonClient4, distributorAddress: 
         // Check if wallet is deployed by getting account state
         const lastBlock = await client.getLastBlock();
         const account = await client.getAccount(lastBlock.last.seqno, rewardJettonWalletAddress);
+        console.log(account);
 
         if (account.account.state.type === 'active') {
             const balance = await rewardJettonWallet.getBalance();
@@ -145,221 +178,103 @@ async function fetchRewardWalletBalance(client: TonClient4, distributorAddress: 
 }
 
 async function distributeRewards() {
-    // Derive key pair from mnemonic
     const keyPair = await mnemonicToWalletKey(MNEMONIC);
-
     const client = new TonClient4({ endpoint: TON_ENDPOINT });
 
-    // Calculate distributor wallet address
     const distributorWallet = WalletContractV5R1.create({
         workchain: DISTRIBUTOR_WALLET_WORKCHAIN,
         publicKey: keyPair.publicKey,
     });
-    const distributorAddress = distributorWallet.address;
-
-    // Get wallet balance from blockchain
-    const lastBlock = await client.getLastBlock();
-    const account = await client.getAccount(lastBlock.last.seqno, distributorAddress);
-    const balance = account.account.balance;
-
-    // Log wallet info after importing from mnemonic
-    console.log('═══════════════════════════════════════════════════════');
-    console.log('📱 Wallet imported from mnemonic phrase');
-    console.log('═══════════════════════════════════════════════════════');
-    console.log('Wallet Address:', distributorAddress.toString());
-    console.log('Balance:', (Number(balance) / 1e9).toFixed(4), 'TON');
-    console.log('Balance (nanoTON):', balance.toString());
-    console.log('═══════════════════════════════════════════════════════\n');
-
-    // Get reward jetton wallet address
-    const rewardMinter = client.open(JettonRoot.createFromAddress(REWARD_JETTON_MINTER));
-    REWARD_JETTON_WALLET = await rewardMinter.getWalletAddress(distributorAddress);
-
-    console.log('Distributor wallet:', distributorAddress.toString());
-    console.log('Reward jetton wallet:', REWARD_JETTON_WALLET.toString());
-    console.log('');
-
-    // Fetch holders
-    const holders = await fetchHolders();
-    const totalBalance = holders.reduce((acc: bigint, h: { balance: string }) => acc + BigInt(h.balance), 0n);
-
-    if (totalBalance === 0n) {
-        console.log('No holders with balance; aborting distribution');
-        return;
-    }
-
-    // Get reward token balance
-    console.log('Checking reward token balance...');
-    const totalReward = await fetchRewardWalletBalance(client, distributorAddress);
-    if (totalReward === 0n) {
-        console.log('');
-        console.log('❌ No reward tokens available; aborting distribution');
-        console.log('   Make sure you have reward tokens in your reward jetton wallet.');
-        console.log(`   Reward jetton wallet address: ${REWARD_JETTON_WALLET.toString()}`);
-        return;
-    }
-    console.log('');
-
-    console.log('Total holders balance:', totalBalance.toString());
-    console.log('Total reward to distribute:', totalReward.toString());
-    console.log(`Number of holders: ${holders.length}`);
-    console.log('');
 
     const walletContract = client.open(distributorWallet);
-    const rewardWalletAddr = REWARD_JETTON_WALLET;
+    const distributorAddress = distributorWallet.address;
 
-    // Prepare all transfers
-    const transfers: Array<{ dest: Address; share: bigint; body: any }> = [];
-    let used = 0n;
-    let skipped = 0;
+    console.log('📱 Distributor wallet:', distributorAddress.toString());
 
-    console.log('Calculating rewards for each holder...');
-    console.log('');
+    // Resolve reward jetton wallet
+    const rewardMinter = client.open(JettonRoot.createFromAddress(REWARD_JETTON_MINTER));
+    const rewardWalletAddr = await rewardMinter.getWalletAddress(distributorAddress);
 
-    // First pass: include ALL holders with non-zero balance (even if share would be 0)
-    // We'll apply minimum guarantee strategy after
-    const holderShares: Array<{ dest: Address; share: bigint; balance: bigint; body: any }> = [];
+    console.log('🎁 Reward jetton wallet:', rewardWalletAddr.toString());
 
-    for (let i = 0; i < holders.length; i++) {
-        const h = holders[i];
-        const bal = BigInt(h.balance);
+    // 1️⃣ Check reward balance FIRST
+    const totalReward = await waitForRewardFunding(client, distributorAddress)
 
-        if (bal === 0n) {
-            console.log(`  Holder ${i + 1}: ${h.owner.address} - Balance: 0 (skipped)`);
-            skipped++;
-            continue;
-        }
-
-        // Proportional share (floor) - but don't skip if 0, we'll handle with minimum guarantee
-        const share = (bal * totalReward) / totalBalance;
-        const dest = Address.parse(h.owner.address);
-
-        console.log(
-            `  Holder ${i + 1}: ${dest.toString()} - Balance: ${bal.toString()} - Initial Share: ${share.toString()}`,
-        );
-
-        // Include ALL holders with non-zero balance, even if share is 0
-        // We'll apply minimum guarantee strategy to ensure everyone gets something
-        holderShares.push({ dest, share, balance: bal, body: null }); // body will be set later
-    }
-
-    console.log('');
-    console.log(`Share calculation summary:`);
-    console.log(`  Total holders: ${holders.length}`);
-    console.log(`  Holders with non-zero balance: ${holderShares.length}`);
-    console.log(`  Skipped (0 balance): ${skipped}`);
-
-    // Strategy: Ensure minimum 1 token per holder (if possible), then distribute remainder proportionally
-    const minPerHolder = 1n;
-    const totalNeededForMin = BigInt(holderShares.length) * minPerHolder;
-
-    if (totalReward >= totalNeededForMin && holderShares.length > 0) {
-        // We have enough to give everyone at least 1 token
-        const remainingAfterMin = totalReward - totalNeededForMin;
-
-        console.log(
-            `  Strategy: Giving minimum ${minPerHolder.toString()} to each holder, then distributing ${remainingAfterMin.toString()} proportionally`,
-        );
-
-        // Reset shares and recalculate with minimum guarantee
-        used = 0n;
-        for (const holder of holderShares) {
-            // Give minimum 1 token
-            let share = minPerHolder;
-
-            // Add proportional share of remainder
-            if (remainingAfterMin > 0n) {
-                const proportionalShare = (holder.balance * remainingAfterMin) / totalBalance;
-                share += proportionalShare;
-            }
-
-            holder.share = share;
-            used += share;
-            console.log(
-                `    ${holder.dest.toString()}: ${share.toString()} tokens (balance: ${holder.balance.toString()})`,
-            );
-        }
-
-        // Distribute any final remainder to largest holder
-        const finalRemainder = totalReward - used;
-        if (finalRemainder > 0n && holderShares.length > 0) {
-            const largestHolder = holderShares.reduce((prev, current) =>
-                current.balance > prev.balance ? current : prev,
-            );
-            largestHolder.share += finalRemainder;
-            used += finalRemainder;
-            console.log(
-                `  Adding final remainder ${finalRemainder.toString()} to largest holder: ${largestHolder.dest.toString()}`,
-            );
-        }
-    } else {
-        // Not enough tokens to give everyone 1, distribute proportionally
-        console.log(
-            `  Strategy: Not enough tokens for minimum guarantee (need ${totalNeededForMin.toString()}, have ${totalReward.toString()})`,
-        );
-        console.log(`  Distributing proportionally based on balance...`);
-
-        used = 0n;
-        for (const holder of holderShares) {
-            const share = (holder.balance * totalReward) / totalBalance;
-            holder.share = share;
-            used += share;
-            if (share > 0n) {
-                console.log(
-                    `    ${holder.dest.toString()}: ${share.toString()} tokens (balance: ${holder.balance.toString()})`,
-                );
-            }
-        }
-
-        // Distribute remainder to largest holder
-        const remainder = totalReward - used;
-        if (remainder > 0n && holderShares.length > 0) {
-            const largestHolder = holderShares.reduce((prev, current) =>
-                current.balance > prev.balance ? current : prev,
-            );
-            largestHolder.share += remainder;
-            used += remainder;
-            console.log(
-                `  Adding remainder ${remainder.toString()} to largest holder: ${largestHolder.dest.toString()}`,
-            );
-        }
-    }
-
-    console.log(`  Total reward allocated: ${used.toString()} / ${totalReward.toString()}`);
-
-    console.log('');
-
-    // Build transfer list from holderShares (only include holders with share > 0)
-    for (const holder of holderShares) {
-        if (holder.share === 0n) {
-            console.log(`  Skipping ${holder.dest.toString()} - share is 0`);
-            continue;
-        }
-
-        const body = buildJettonTransferBody(holder.share, holder.dest);
-        transfers.push({ dest: holder.dest, share: holder.share, body });
-    }
-
-    console.log('');
-    console.log(`Prepared ${transfers.length} transfers (skipped ${skipped} holders with 0 share)`);
-    console.log(`Total reward to send: ${used.toString()}`);
-    console.log('');
-
-    if (transfers.length === 0) {
-        console.log('No transfers to send');
+    if (totalReward === 0n) {
+        console.log('⏳ No rewards available yet.');
         return;
     }
 
-    // Send all transfers in batches (to avoid message size limits)
-    // TON wallet can handle up to 4 messages per transaction, so we'll batch them
-    const BATCH_SIZE = 4;
-    let totalSent = 0;
+    // 2️⃣ Fetch holders
+    const holders = await fetchHolders();
+    const validHolders = holders.filter(h => BigInt(h.balance) > 0n);
 
-    for (let i = 0; i < transfers.length; i += BATCH_SIZE) {
+    if (validHolders.length === 0) {
+        console.log('❌ No holders with balance.');
+        return;
+    }
+
+    const totalBalance = validHolders.reduce(
+        (acc, h) => acc + BigInt(h.balance),
+        0n,
+    );
+
+    console.log(`👥 Holders: ${validHolders.length}`);
+    console.log(`📊 Total holder balance: ${totalBalance.toString()}`);
+    console.log(`💰 Total reward to distribute: ${totalReward.toString()}`);
+
+    // 3️⃣ Build transfers
+    const transfers: {
+        dest: Address;
+        share: bigint;
+        body: any;
+    }[] = [];
+
+    let allocated = 0n;
+
+    for (const h of validHolders) {
+        const share = (BigInt(h.balance) * totalReward) / totalBalance;
+        if (share === 0n) continue;
+
+        const dest = Address.parse(h.owner.address);
+        transfers.push({
+            dest,
+            share,
+            body: buildJettonTransferBody(share, dest),
+        });
+
+        allocated += share;
+    }
+
+    // Remainder → first holder
+    const remainder = totalReward - allocated;
+    if (remainder > 0n && transfers.length > 0) {
+        transfers[0].share += remainder;
+        transfers[0].body = buildJettonTransferBody(
+            transfers[0].share,
+            transfers[0].dest,
+        );
+    }
+
+    console.log(`📦 Prepared ${transfers.length} transfers`);
+
+    // 4️⃣ Progress logic (NOW it is legal)
+    const lastIndex = loadProgress();
+
+    if (lastIndex >= transfers.length) {
+        console.log('🔄 New funding cycle detected. Resetting progress.');
+        saveProgress(0);
+    }
+
+    let startIndex = loadProgress();
+    console.log(`🔁 Resuming from index ${startIndex}`);
+
+    // 5️⃣ Batch sending
+    for (let i = startIndex; i < transfers.length; i += BATCH_SIZE) {
         const batch = transfers.slice(i, i + BATCH_SIZE);
         const seqno = await walletContract.getSeqno();
 
-        console.log(`Sending batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} transfers)...`);
+        console.log(`🚀 Sending batch ${i} → ${i + batch.length}`);
 
         await walletContract.sendTransfer({
             seqno,
@@ -368,33 +283,46 @@ async function distributeRewards() {
             messages: batch.map(({ body }) =>
                 internal({
                     to: rewardWalletAddr,
-                    value: toNano('0.05'), // enough gas for JettonTransfer
+                    value: toNano('0.06'),
                     bounce: true,
                     body,
                 }),
             ),
         });
 
-        // Log each transfer in the batch
+        // Save progress ONLY after success
+        saveProgress(i + batch.length);
+
         for (const { dest, share } of batch) {
-            console.log(`  ✅ Sent ${share.toString()} reward tokens to ${dest.toString()}`);
-            totalSent++;
+            console.log(`  ✅ ${share.toString()} → ${dest.toString()}`);
         }
 
-        // Wait a bit between batches to avoid rate limiting
         if (i + BATCH_SIZE < transfers.length) {
-            console.log('  Waiting 2 seconds before next batch...');
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
         }
     }
 
-    console.log('');
-    console.log(`✅ Distribution complete!`);
-    console.log(`   Total transfers sent: ${totalSent}`);
-    console.log(`   Total reward distributed: ${used.toString()}`);
+    console.log('🎉 Distribution cycle complete.');
 }
 
-distributeRewards().catch((e) => {
+
+async function runContinuousDistribution() {
+    console.log('🟢 Starting continuous reward distributor…');
+
+    while (true) {
+        try {
+            await distributeRewards();
+            console.log('🕒 Waiting for next reward funding cycle…');
+        } catch (err) {
+            console.error('🔥 Distribution error:', err);
+        }
+
+        // Sleep before checking again
+        await new Promise((r) => setTimeout(r, 20000));
+    }
+}
+
+runContinuousDistribution().catch((e) => {
     console.error(e);
     process.exit(1);
 });

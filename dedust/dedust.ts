@@ -8,8 +8,9 @@ const factory = tonClient.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
 export async function getDedustAddresses(owner: Address) {
     const minterVault = tonClient.open(await factory.getJettonVault(minterAddress));
     const TON = Asset.native();
+    const PD =  Asset.jetton(Address.parse('EQBCDdOHy1Ub6gN1OUd2PpJ8yswkzBsVg56Fi9L8PKSlFkdt'));
     const JETTON = Asset.jetton(minterAddress);
-    const assets: [Asset, Asset] = [TON, JETTON];
+    const assets: [Asset, Asset] = [PD, JETTON];
 
     const pool = tonClient.open(await factory.getPool(PoolType.VOLATILE, assets));
     const poolAddress = await factory.getPoolAddress({ poolType: PoolType.VOLATILE, assets });
@@ -26,11 +27,11 @@ export async function getDedustAddresses(owner: Address) {
         pool: pool.address,
         router: MAINNET_FACTORY_ADDR,
         poolAddress,
-        ton: TON.address?.toString() ?? '',
+        // ton: TON?.address?.toString() ?? '',
         liquidityDepositAddress: getLiquidityDepositAddress,
     };
 }
 
-getDedustAddresses(Address.parse('UQBBaBf8QlT5gOZ6HA3cZurf3GyKf6PbPVOx27Oeg1OsVstD')).then((data) => console.log(data));
+getDedustAddresses(Address.parse('UQBxzBaa45enb6bo_0Gvx6G6wRdJDFzcd9vh1aUvfM9-Oe-U')).then((data) => console.log(data));
 
 // EQA0tIRLDnsSxcfajbDLP45UXV8ySt5Ly0Q4hcC-s5KJpfeh

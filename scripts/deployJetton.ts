@@ -8,13 +8,15 @@ export async function run(provider: NetworkProvider) {
     const senderAddress = sender.address;
     if (!senderAddress) return;
 
+   
+
     const jettonMinter = provider.open(
         await JettonMinterStandard.fromInit(
             toNano('0'),
             senderAddress,
             jettonContentToCell({
                 type: 1,
-                uri: 'https://moccasin-bright-skunk-108.mypinata.cloud/ipfs/bafkreifcqanri6m7esr6cueq5slot4fjry3p2el32cplgmog5d7iunxrfm',
+                uri: 'https://moccasin-bright-skunk-108.mypinata.cloud/ipfs/bafkreifk55outkxpih66rxvy435eb7jibe7ozhch5xi3efro44uzexqqeu',
             }),
             true,
             Address.parse('UQD_t9e_dF4ADstJ8O_k_cS7GtOm9vOls2XHCWbjD8EoxUHa'),

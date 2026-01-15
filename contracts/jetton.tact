@@ -21,6 +21,9 @@ contract JettonMinterStandard {
     dedustRouterAddress: Address;
     poolAddress: Address;
     liquidityDepositAddress: Address;
+    tokenDedustVaultAddress: Address;
+    tokenPoolAddress: Address;
+    tokenLiquidityDepositAddress: Address; 
     feeWallet: Address;
     buyTaxBps: Int;
     sellTaxBps: Int;
@@ -48,6 +51,9 @@ contract JettonMinterStandard {
         self.dedustRouterAddress = emptyAddress();
         self.poolAddress = emptyAddress();
         self.liquidityDepositAddress = emptyAddress();
+        self.tokenDedustVaultAddress= emptyAddress();
+        self.tokenLiquidityDepositAddress= emptyAddress();
+        self.tokenPoolAddress = emptyAddress();
 
         self.feeWallet = _feeWallet;
         self.buyTaxBps = _buyTaxBps;
@@ -91,6 +97,9 @@ contract JettonMinterStandard {
                 self.dedustRouterAddress,
                 self.poolAddress,
                 self.liquidityDepositAddress,
+                self.tokenDedustVaultAddress,
+                self.tokenLiquidityDepositAddress,
+                self.tokenPoolAddress,
                 self.feeWallet,
                 self.buyTaxBps,
                 self.sellTaxBps,
@@ -112,6 +121,9 @@ contract JettonMinterStandard {
                 self.dedustRouterAddress,
                 self.poolAddress,
                 self.liquidityDepositAddress,
+                self.tokenDedustVaultAddress,
+                self.tokenLiquidityDepositAddress,
+                self.tokenPoolAddress,
                 self.feeWallet,
                 self.buyTaxBps,
                 self.sellTaxBps,
@@ -128,7 +140,20 @@ contract JettonMinterStandard {
 
     receive(msg: JettonBurnNotification) {
         let sender = parseStdAddress(sender().asSlice());
-        let wallet = getJettonBasechainWalletByOwner(msg.sender, self.timeLapse, self.owner, self.dedustVaultAddress, self.dedustRouterAddress, self.poolAddress, self.liquidityDepositAddress, self.feeWallet, self.buyTaxBps, self.sellTaxBps);
+        let wallet = getJettonBasechainWalletByOwner(
+            msg.sender, 
+            self.timeLapse, 
+            self.owner, 
+            self.dedustVaultAddress, 
+            self.dedustRouterAddress, 
+            self.poolAddress, 
+            self.liquidityDepositAddress, 
+            self.tokenDedustVaultAddress,
+            self.tokenLiquidityDepositAddress,
+            self.tokenPoolAddress, 
+            self.feeWallet, 
+            self.buyTaxBps, 
+            self.sellTaxBps);
 
         require(sender.workchain == Basechain && sender.address == wallet.hash!!, "Unauthorized burn");
 
@@ -179,6 +204,9 @@ contract JettonMinterStandard {
         self.dedustVaultAddress = msg.dedustVaultAddress;
         self.poolAddress = msg.poolAddress;
         self.liquidityDepositAddress = msg.liquidityDepositAddress;
+        self.tokenDedustVaultAddress = msg.tokenDedustVaultAddress;
+        self.tokenLiquidityDepositAddress = msg.tokenLiquidityDepositAddress;
+        self.tokenPoolAddress = msg.tokenPoolAddress;
         self.updatedRequiredAddress = true;
     }
 
@@ -205,6 +233,9 @@ contract JettonMinterStandard {
             self.dedustRouterAddress,
             self.poolAddress,
             self.liquidityDepositAddress,
+            self.tokenDedustVaultAddress,
+            self.tokenLiquidityDepositAddress,
+            self.tokenPoolAddress,
             self.feeWallet,
             self.buyTaxBps,
             self.sellTaxBps,
@@ -235,6 +266,9 @@ inline fun getJettonWalletInit(
     dedustRouterAddress: Address,
     poolAddress: Address,
     liquidityDepositAddress: Address,
+    tokenDedustVaultAddress: Address,
+    tokenLiquidityDepositAddress: Address,
+    tokenPoolAddress: Address,
     feeWallet: Address,
     buyTaxBps: Int,
     sellTaxBps: Int,
@@ -249,6 +283,9 @@ inline fun getJettonWalletInit(
         dedustRouterAddress,
         poolAddress,
         liquidityDepositAddress,
+        tokenDedustVaultAddress,
+        tokenLiquidityDepositAddress,
+        tokenPoolAddress,
         feeWallet,
         buyTaxBps,
         sellTaxBps,
@@ -263,6 +300,9 @@ inline fun getJettonWalletByOwner(
     dedustRouterAddress: Address,
     poolAddress: Address,
     liquidityDepositAddress: Address,
+    tokenDedustVaultAddress: Address,
+    tokenLiquidityDepositAddress: Address,
+    tokenPoolAddress: Address,
     feeWallet: Address,
     buyTaxBps: Int,
     sellTaxBps: Int,
@@ -275,6 +315,9 @@ inline fun getJettonWalletByOwner(
         dedustRouterAddress,
         poolAddress,
         liquidityDepositAddress,
+        tokenDedustVaultAddress,
+        tokenLiquidityDepositAddress,
+        tokenPoolAddress,
         feeWallet,
         buyTaxBps,
         sellTaxBps,
@@ -289,6 +332,9 @@ inline fun getJettonBasechainWalletByOwner(
     dedustRouterAddress: Address,
     poolAddress: Address,
     liquidityDepositAddress: Address,
+    tokenDedustVaultAddress: Address,
+    tokenLiquidityDepositAddress: Address,
+    tokenPoolAddress: Address,
     feeWallet: Address,
     buyTaxBps: Int,
     sellTaxBps: Int,
@@ -301,6 +347,9 @@ inline fun getJettonBasechainWalletByOwner(
         dedustRouterAddress,
         poolAddress,
         liquidityDepositAddress,
+        tokenDedustVaultAddress,
+        tokenLiquidityDepositAddress,
+        tokenPoolAddress,
         feeWallet,
         buyTaxBps,
         sellTaxBps,

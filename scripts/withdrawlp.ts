@@ -1,12 +1,12 @@
 import { Asset, Factory, MAINNET_FACTORY_ADDR, PoolType } from '@dedust/sdk';
 import { NetworkProvider } from '@ton/blueprint';
 import { minterAddress } from '../utils';
-import { toNano } from '@ton/core';
+import { Address, toNano } from '@ton/core';
 
-const TON = Asset.native();
+const GOLD = Asset.jetton(Address.parse('EQBCDdOHy1Ub6gN1OUd2PpJ8yswkzBsVg56Fi9L8PKSlFkdt'));
 const JETTON = Asset.jetton(minterAddress);
 
-const assets: [Asset, Asset] = [TON, JETTON];
+const assets: [Asset, Asset] = [GOLD, JETTON];
 
 export async function run(provider: NetworkProvider) {
     const sender = provider.sender();

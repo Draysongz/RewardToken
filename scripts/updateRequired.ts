@@ -18,10 +18,13 @@ export async function run(provider: NetworkProvider) {
         },
         {
             $$type: 'UpdateRequiredAddresses',
-            dedustVaultAddress: Address.parse('EQC9gxngYSj1hnuD8WiPklrthTsm2VTpshAjPG1X35UCtFDo'),
+            dedustVaultAddress: Address.parse('EQBL8w8jmBmLTr8EWIwkkTF1QKx8gXfL3qjTp6FforV3mOe7'),
             dedustRouterAddress: Address.parse('EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67'),
-            liquidityDepositAddress: Address.parse('EQCoUu_l23k_PmgZq2Dq-ILzGLgb1CH8r2cEjB0hr7zXV6ob'),
-            poolAddress: Address.parse('EQAwtFSXrcTWdaqqF5L7YLXV7Q8KA2DGXPJGfb9XzYUczJPv'),
+            liquidityDepositAddress: Address.parse('EQDLyJN-gnmQednlnDLO6sTXqDtUigoZpVQGFwQm4H3OEdAa'),
+            poolAddress: Address.parse('EQDaaoCwkEIyv0A32DcSs1FU624sCUd38o9u0WHOpE6HhbGl'),
+            tokenDedustVaultAddress:  Address.parse('EQBL8w8jmBmLTr8EWIwkkTF1QKx8gXfL3qjTp6FforV3mOe7') ,
+            tokenLiquidityDepositAddress: Address.parse('EQDIjWhvwyn5ykYwwn8j45-Wey2PV089bva1R8kA95d37RJB'),
+            tokenPoolAddress: Address.parse('EQD0AKVi60rvxLzc8XU20ngEwQeedMqRXtMXsuY7h2VMXx3j'),
         },
     );
 

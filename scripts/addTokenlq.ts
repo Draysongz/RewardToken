@@ -2,15 +2,21 @@ import { Asset, Factory, JettonRoot, MAINNET_FACTORY_ADDR, PoolType, ReadinessSt
 import { toNano } from '@ton/core';
 import { minterAddress } from '../utils';
 import { NetworkProvider } from '@ton/blueprint';
+import { Address } from '@ton/core';
 
-const tonAmount = toNano('12'); // 10 ton
-const jettonAmount = toNano('49000000'); // 1 million jetton
+const pdAmount = toNano('65000000'); // 65000 PD
+const jettonAmount = toNano('49000000'); // 49 million jetto
 
-const TON = Asset.native();
+// const TON = Asset.native();
+
+const PD = Asset.jetton(Address.parse('EQBCDdOHy1Ub6gN1OUd2PpJ8yswkzBsVg56Fi9L8PKSlFkdt'));
 const JETTON = Asset.jetton(minterAddress);
+const pdAddress= Address.parse('EQBCDdOHy1Ub6gN1OUd2PpJ8yswkzBsVg56Fi9L8PKSlFkdt')
 
-const assets: [Asset, Asset] = [TON, JETTON];
-const targetBalances: [bigint, bigint] = [tonAmount, jettonAmount];
+const assets: [Asset, Asset] = [PD, JETTON];
+const targetBalances: [bigint, bigint] = [pdAmount, jettonAmount];
+
+
 
 const poolType = PoolType.VOLATILE;
 
@@ -21,17 +27,29 @@ export async function run(provider: NetworkProvider) {
 
     const factory = provider.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
 
-    const tonVault = provider.open(await factory.getNativeVault());
+    const pdVault = provider.open(await factory.getJettonVault(pdAddress));
     const pool = provider.open(await factory.getPool(poolType, assets));
     const minterVault = provider.open(await factory.getJettonVault(minterAddress));
 
     const minter = provider.open(JettonRoot.createFromAddress(minterAddress));
+    const pd=  provider.open(JettonRoot.createFromAddress(pdAddress));
     const senderWallet = provider.open(await minter.getWallet(sender.address));
+    const pdWallet =  provider.open(await pd.getWallet(sender.address));
 
     if ((await minterVault.getReadinessStatus()) === ReadinessStatus.NOT_DEPLOYED) {
         console.log('Vault does not exist. Creating...');
         await factory.sendCreateVault(sender, {
             asset: JETTON,
+        });
+
+        console.log('Waiting for Vault deployment...');
+        await new Promise((r) => setTimeout(r, 3000));
+    }
+
+        if ((await pdVault.getReadinessStatus()) === ReadinessStatus.NOT_DEPLOYED) {
+        console.log('Vault does not exist. Creating...');
+        await factory.sendCreateVault(sender, {
+            asset: PD,
         });
 
         console.log('Waiting for Vault deployment...');
@@ -50,12 +68,20 @@ export async function run(provider: NetworkProvider) {
 
     console.log('Addresses initialized');
 
-    await tonVault.sendDepositLiquidity(sender, {
-        poolType: PoolType.VOLATILE,
-        assets,
-        targetBalances,
-        amount: tonAmount,
+
+
+        await pdWallet.sendTransfer(sender, toNano('0.5'), {
+        amount: pdAmount,
+        destination: pdVault.address,
+        responseAddress: sender.address,
+        forwardAmount: toNano('0.4'),
+        forwardPayload: VaultJetton.createDepositLiquidityPayload({
+            poolType,
+            assets,
+            targetBalances,
+        }),
     });
+
 
     // deposit dedust to vault
 
